@@ -147,14 +147,25 @@
             cell.classList.add("revealed");
 
             if (index === mineIndex) {
-                // MINE HIT: Lose the greater of 5 points or half your points, reset multiplier
+                // MINE HIT: Lose points, reset multiplier, END GAME
                 const penalty = Math.max(5, Math.floor(currentPoints / 2)); 
                 currentPoints -= penalty;
                 currentMultiplier = 1; 
                 
                 cell.classList.add("mine");
                 updateStatus();
-                checkEndGame();
+                
+                // Immediately end the game and show the end screen after hitting the mine
+                document.getElementById("endMessage").innerText = "💥 Boom! You hit the mine!";
+                document.getElementById("finalScore").innerText = `Points Lost: ${penalty}. Final Score: ${currentPoints}`;
+                document.getElementById("endScreen").classList.remove("hidden");
+                gameEnded = true;
+                freezeBoard();
+                
+                // Only check for points depletion if the player didn't already run out
+                if (currentPoints <= 0) {
+                    checkEndGame(true);
+                }
             } else {
                 // SAFE CLICK: Variable reward + multiplier increase
                 const basePoints = Math.floor(Math.random() * (basePointRange[1] - basePointRange[0] + 1)) + basePointRange[0];
@@ -183,13 +194,16 @@
             }
         }
 
-        function checkEndGame() {
+        // Modified checkEndGame to handle the case where points drop to 0 after mine hit
+        function checkEndGame(wasMineHit = false) {
             if (currentPoints <= 0) {
                 document.getElementById("endMessage").innerText = "💥 Game Over! You ran out of points.";
                 document.getElementById("finalScore").innerText = `Final Score: ${currentPoints}`;
                 document.getElementById("endScreen").classList.remove("hidden");
                 gameEnded = true;
                 freezeBoard();
+            } else if (wasMineHit) {
+                // If mine was hit but points > 0, the game still ends, using the mine end screen message
             }
         }
 
