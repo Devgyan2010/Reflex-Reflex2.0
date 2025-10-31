@@ -56,6 +56,15 @@
         .end-screen h2 { font-size: 32px; font-weight: bold; text-transform: uppercase; animation: fadeIn 1s ease; }
 
         #resetContainer { margin-top: 20px; }
+        
+        /* Style for the button inside the end screen */
+        .end-screen-button {
+            margin-top: 20px;
+            padding: 12px 24px; font-size: 18px; 
+            cursor: pointer; background: #548FF7; color: white; border: none; 
+            border-radius: 5px; font-weight: bold; transition: 0.3s ease;
+        }
+        .end-screen-button:hover { background: #030E26; }
 
         #resetButton { 
             padding: 12px 24px; font-size: 18px; 
@@ -78,12 +87,13 @@
     <div class="grid" id="grid"></div>
 
     <div id="resetContainer">
-        <button id="resetButton">Start New Game / Reset</button>
+        <button id="resetButton">Start New Game / Bank Points</button>
     </div>
 
     <div id="endScreen" class="end-screen hidden">
         <h2 id="endMessage"></h2>
         <p id="finalScore"></p>
+        <button id="endScreenResetButton" class="end-screen-button">Play Again?</button>
     </div>
 
     <script>
@@ -155,17 +165,18 @@
                 cell.classList.add("mine");
                 updateStatus();
                 
-                // Immediately end the game and show the end screen after hitting the mine
-                document.getElementById("endMessage").innerText = "💥 Boom! You hit the mine!";
+                // Show specific end messages based on point balance
+                if (currentPoints <= 0) {
+                     document.getElementById("endMessage").innerText = "💥 Game Over! You ran out of points.";
+                } else {
+                    document.getElementById("endMessage").innerText = "💣 Boom! You hit the mine!";
+                }
+                
                 document.getElementById("finalScore").innerText = `Points Lost: ${penalty}. Final Score: ${currentPoints}`;
                 document.getElementById("endScreen").classList.remove("hidden");
                 gameEnded = true;
                 freezeBoard();
                 
-                // Only check for points depletion if the player didn't already run out
-                if (currentPoints <= 0) {
-                    checkEndGame(true);
-                }
             } else {
                 // SAFE CLICK: Variable reward + multiplier increase
                 const basePoints = Math.floor(Math.random() * (basePointRange[1] - basePointRange[0] + 1)) + basePointRange[0];
@@ -191,19 +202,6 @@
                 document.getElementById("endScreen").classList.remove("hidden");
                 gameEnded = true;
                 freezeBoard();
-            }
-        }
-
-        // Modified checkEndGame to handle the case where points drop to 0 after mine hit
-        function checkEndGame(wasMineHit = false) {
-            if (currentPoints <= 0) {
-                document.getElementById("endMessage").innerText = "💥 Game Over! You ran out of points.";
-                document.getElementById("finalScore").innerText = `Final Score: ${currentPoints}`;
-                document.getElementById("endScreen").classList.remove("hidden");
-                gameEnded = true;
-                freezeBoard();
-            } else if (wasMineHit) {
-                // If mine was hit but points > 0, the game still ends, using the mine end screen message
             }
         }
 
@@ -234,7 +232,9 @@
             }
         });
 
+        // Event listeners for ALL reset buttons
         document.getElementById("resetButton").addEventListener("click", resetGame);
+        document.getElementById("endScreenResetButton").addEventListener("click", resetGame);
 
         // Initial setup
         resetGame(); 
