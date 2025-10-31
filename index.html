@@ -1,143 +1,229 @@
-<script>
-    const gridSize = 5;
-    const qwertyMap = 'QWERTYUIOPASDFGHJKLZXCVBN';
-    const initialPoints = 10;
-    let currentPoints;
-    let mineIndex;
-    let revealedCells = 0;
-    let gameEnded = false;
-    
-    // --- NEW MONEY SYSTEM VARIABLES ---
-    let currentMultiplier = 1; // Starts at 1x
-    const multiplierIncrease = 0.2; // Multiplier increases by 0.2 after each safe reveal
-    const basePointRange = [2, 4]; // Safe reveals earn 2 to 4 points
-
-    function generateMine() {
-        mineIndex = Math.floor(Math.random() * (gridSize * gridSize));
-    }
-
-    function createGrid() {
-        // ... (Grid creation logic remains the same)
-        const grid = document.getElementById("grid");
-        grid.innerHTML = "";
-        for (let i = 0; i < gridSize * gridSize; i++) {
-            const cell = document.createElement("div");
-            cell.classList.add("cell");
-            cell.dataset.index = i;
-
-            const cellInner = document.createElement("div");
-            cellInner.classList.add("cell-inner");
-
-            const cellFront = document.createElement("div");
-            cellFront.classList.add("cell-front");
-            cellFront.innerText = qwertyMap[i]; 
-            
-            const cellBack = document.createElement("div");
-            cellBack.classList.add("cell-back");
-            cellBack.innerHTML = (i === mineIndex) ? '💣' : '⭐'; 
-
-            cellInner.appendChild(cellFront);
-            cellInner.appendChild(cellBack);
-            cell.appendChild(cellInner);
-
-            cell.addEventListener("click", () => revealCell(i));
-            grid.appendChild(cell);
-        }
-    }
-
-    function updateStatus() {
-        // Display both points and multiplier
-        document.getElementById("status").innerText = `Current Points: ${currentPoints} | Multiplier: x${currentMultiplier.toFixed(1)}`;
-    }
-
-    function revealCell(index) {
-        if (gameEnded) return;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz-Box Challenge - QWERTY Edition</title>
+    <style>
+        /* --- CSS STYLES --- */
+        body { font-family: Arial, sans-serif; text-align: center; position: relative; min-height: 100vh; background-color: #f4f4f9; }
+        h1 { color: #030E26; }
+        p { color: #333; }
+        .grid { display: grid; grid-template-columns: repeat(5, 60px); gap: 5px; justify-content: center; margin-top: 20px; }
         
-        const cell = document.querySelector(`.cell[data-index='${index}']`);
-        if (!cell || cell.classList.contains("revealed")) return;
-
-        cell.classList.add("revealed");
-
-        if (index === mineIndex) {
-            // --- MINE HIT LOGIC (Risk/Reward) ---
-            const penalty = Math.max(5, Math.floor(currentPoints / 2)); // Lose 5 or half your points, whichever is greater
-            currentPoints -= penalty;
-            
-            // **Bank System:** Reset multiplier on mine hit
-            currentMultiplier = 1; 
-            
-            cell.classList.add("mine");
-            updateStatus();
-            checkEndGame();
-        } else {
-            // --- SAFE CLICK LOGIC (Variable Reward + Multiplier) ---
-            const basePoints = Math.floor(Math.random() * (basePointRange[1] - basePointRange[0] + 1)) + basePointRange[0];
-            const earnedPoints = Math.floor(basePoints * currentMultiplier);
-            
-            currentPoints += earnedPoints;
-            revealedCells++;
-            
-            // Increase the multiplier for the next click
-            currentMultiplier += multiplierIncrease;
-            
-            updateStatus();
-            checkVictory();
+        .cell { 
+            width: 60px; height: 60px; background: #99BFFF; 
+            display: flex; align-items: center; justify-content: center; 
+            font-size: 24px; cursor: pointer; border: 2px solid #548FF7;
+            color: #030E26; font-weight: bold;
+            transition: transform 0.3s ease, background 0.3s ease; 
+            perspective: 1000px; 
         }
-    }
-
-    function freezeBoard() {
-        document.querySelectorAll(".cell").forEach(cell => cell.style.pointerEvents = "none");
-    }
-
-    function checkVictory() {
-        if (revealedCells === gridSize * gridSize - 1) {
-            document.getElementById("endMessage").innerText = "🏆 Victory! All Safe Boxes Found!";
-            document.getElementById("finalScore").innerText = `Final Score: ${currentPoints} (Multiplier: x${currentMultiplier.toFixed(1)})`;
-            document.getElementById("endScreen").classList.remove("hidden");
-            gameEnded = true;
-            freezeBoard();
+        .cell:hover { background: #7ba9ff; }
+        .cell-inner {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
         }
-    }
-
-    function checkEndGame() {
-        if (currentPoints <= 0) {
-            document.getElementById("endMessage").innerText = "💥 Game Over! You ran out of points.";
-            document.getElementById("finalScore").innerText = `Final Score: ${currentPoints} (Multiplier reset)`;
-            document.getElementById("endScreen").classList.remove("hidden");
-            gameEnded = true;
-            freezeBoard();
+        .cell.revealed .cell-inner {
+            transform: rotateY(180deg);
         }
-    }
+        .cell-front, .cell-back {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .cell-back {
+            transform: rotateY(180deg);
+            background: lightgreen;
+        }
+        .cell.mine .cell-back { background: red; }
 
-    function resetGame() {
-        currentPoints = initialPoints; // Reset points
-        revealedCells = 0;
-        gameEnded = false;
-        currentMultiplier = 1; // Reset multiplier
-        generateMine();
-        createGrid();
-        updateStatus();
-        document.getElementById("endScreen").classList.add("hidden");
-        document.querySelectorAll(".cell").forEach(cell => cell.style.pointerEvents = "auto");
-    }
+        .end-screen { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.8); color: white; display: flex;
+            flex-direction: column; align-items: center; justify-content: center;
+            z-index: 1000; transition: opacity 0.5s ease-in-out; 
+        }
+        .end-screen.hidden { display: none; opacity: 0; }
+        .end-screen h2 { font-size: 32px; font-weight: bold; text-transform: uppercase; animation: fadeIn 1s ease; }
+
+        #resetContainer { margin-top: 20px; }
+
+        #resetButton { 
+            padding: 12px 24px; font-size: 18px; 
+            cursor: pointer; background: #548FF7; color: white; border: none; 
+            border-radius: 5px; font-weight: bold; transition: 0.3s ease;
+        }
+        #resetButton:hover { background: #030E26; }
+
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: translateY(30px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Quiz-Box Challenge - QWERTY Edition</h1>
+    <p>Find the safe boxes! Use your mouse or the keys **Q** through **N** (QWERTY order).</p>
+    <p id="status">Current Points: 10 | Multiplier: x1.0</p>
     
-    // --- Keyboard Input Feature (QWERTY Map) ---
-    document.addEventListener('keydown', (event) => {
-        if (gameEnded) return;
-        
-        const key = event.key.toUpperCase();
-        const index = qwertyMap.indexOf(key); 
+    <div class="grid" id="grid"></div>
 
-        if (index !== -1) {
-            const cell = document.querySelector(`.cell[data-index='${index}']`);
-            if (cell && !cell.classList.contains("revealed")) {
-                 revealCell(index);
+    <div id="resetContainer">
+        <button id="resetButton">Start New Game / Reset</button>
+    </div>
+
+    <div id="endScreen" class="end-screen hidden">
+        <h2 id="endMessage"></h2>
+        <p id="finalScore"></p>
+    </div>
+
+    <script>
+        /* --- JAVASCRIPT LOGIC --- */
+        const gridSize = 5;
+        const qwertyMap = 'QWERTYUIOPASDFGHJKLZXCVBN';
+        const initialPoints = 10;
+        
+        let currentPoints;
+        let mineIndex;
+        let revealedCells = 0;
+        let gameEnded = false;
+        
+        // Advanced Money System Variables
+        let currentMultiplier = 1; 
+        const multiplierIncrease = 0.2; 
+        const basePointRange = [2, 4]; 
+
+        function generateMine() {
+            mineIndex = Math.floor(Math.random() * (gridSize * gridSize));
+        }
+
+        function createGrid() {
+            const grid = document.getElementById("grid");
+            grid.innerHTML = "";
+            for (let i = 0; i < gridSize * gridSize; i++) {
+                const cell = document.createElement("div");
+                cell.classList.add("cell");
+                cell.dataset.index = i;
+
+                const cellInner = document.createElement("div");
+                cellInner.classList.add("cell-inner");
+
+                const cellFront = document.createElement("div");
+                cellFront.classList.add("cell-front");
+                cellFront.innerText = qwertyMap[i]; 
+                
+                const cellBack = document.createElement("div");
+                cellBack.classList.add("cell-back");
+                cellBack.innerHTML = (i === mineIndex) ? '💣' : '⭐'; 
+
+                cellInner.appendChild(cellFront);
+                cellInner.appendChild(cellBack);
+                cell.appendChild(cellInner);
+
+                cell.addEventListener("click", () => revealCell(i));
+                grid.appendChild(cell);
             }
         }
-    });
 
-    document.getElementById("resetButton").addEventListener("click", resetGame);
+        function updateStatus() {
+            document.getElementById("status").innerText = `Current Points: ${currentPoints} | Multiplier: x${currentMultiplier.toFixed(1)}`;
+        }
 
-    // Initial setup
-    resetGame(); 
-</script>
+        function revealCell(index) {
+            if (gameEnded) return;
+            
+            const cell = document.querySelector(`.cell[data-index='${index}']`);
+            if (!cell || cell.classList.contains("revealed")) return;
+
+            cell.classList.add("revealed");
+
+            if (index === mineIndex) {
+                // MINE HIT: Lose the greater of 5 points or half your points, reset multiplier
+                const penalty = Math.max(5, Math.floor(currentPoints / 2)); 
+                currentPoints -= penalty;
+                currentMultiplier = 1; 
+                
+                cell.classList.add("mine");
+                updateStatus();
+                checkEndGame();
+            } else {
+                // SAFE CLICK: Variable reward + multiplier increase
+                const basePoints = Math.floor(Math.random() * (basePointRange[1] - basePointRange[0] + 1)) + basePointRange[0];
+                const earnedPoints = Math.floor(basePoints * currentMultiplier);
+                
+                currentPoints += earnedPoints;
+                revealedCells++;
+                currentMultiplier += multiplierIncrease;
+                
+                updateStatus();
+                checkVictory();
+            }
+        }
+
+        function freezeBoard() {
+            document.querySelectorAll(".cell").forEach(cell => cell.style.pointerEvents = "none");
+        }
+
+        function checkVictory() {
+            if (revealedCells === gridSize * gridSize - 1) {
+                document.getElementById("endMessage").innerText = "🏆 Victory! All Safe Boxes Found!";
+                document.getElementById("finalScore").innerText = `Final Score: ${currentPoints} (Multiplier: x${currentMultiplier.toFixed(1)})`;
+                document.getElementById("endScreen").classList.remove("hidden");
+                gameEnded = true;
+                freezeBoard();
+            }
+        }
+
+        function checkEndGame() {
+            if (currentPoints <= 0) {
+                document.getElementById("endMessage").innerText = "💥 Game Over! You ran out of points.";
+                document.getElementById("finalScore").innerText = `Final Score: ${currentPoints}`;
+                document.getElementById("endScreen").classList.remove("hidden");
+                gameEnded = true;
+                freezeBoard();
+            }
+        }
+
+        function resetGame() {
+            currentPoints = initialPoints; 
+            revealedCells = 0;
+            gameEnded = false;
+            currentMultiplier = 1; 
+            generateMine();
+            createGrid();
+            updateStatus();
+            document.getElementById("endScreen").classList.add("hidden");
+            document.querySelectorAll(".cell").forEach(cell => cell.style.pointerEvents = "auto");
+        }
+        
+        // --- Keyboard Input Feature (QWERTY Map) ---
+        document.addEventListener('keydown', (event) => {
+            if (gameEnded) return;
+            
+            const key = event.key.toUpperCase();
+            const index = qwertyMap.indexOf(key); 
+
+            if (index !== -1) {
+                const cell = document.querySelector(`.cell[data-index='${index}']`);
+                if (cell && !cell.classList.contains("revealed")) {
+                     revealCell(index);
+                }
+            }
+        });
+
+        document.getElementById("resetButton").addEventListener("click", resetGame);
+
+        // Initial setup
+        resetGame(); 
+    </script>
+</body>
+</html>
